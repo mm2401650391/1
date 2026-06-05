@@ -59,7 +59,6 @@
             display: none;
         }
         
-        /* 登录后主面板 */
         #dashboard { display: none; }
         .user-header {
             display: flex;
@@ -118,7 +117,6 @@
             margin-top: 20px;
         }
         
-        /* 兑换弹窗 */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -146,7 +144,6 @@
         .btn-cancel { background: #555; }
         .btn-cancel:hover { background: #444; }
         
-        /* 成功提示 */
         .toast {
             position: fixed;
             top: 20px;
@@ -163,7 +160,6 @@
 </head>
 <body>
 
-    <!-- 登录界面 -->
     <div class="card" id="loginCard">
         <h1>🎮 氏族积分中心</h1>
         <input type="text" id="username" placeholder="账号" autocomplete="off">
@@ -172,7 +168,6 @@
         <p class="error" id="errorMsg">账号或密码错误</p>
     </div>
 
-    <!-- 主面板 -->
     <div class="card" id="dashboard">
         <div class="user-header">
             <div>
@@ -188,7 +183,6 @@
         <button class="logout-btn" onclick="logout()">退出登录</button>
     </div>
 
-    <!-- 兑换确认弹窗 -->
     <div class="modal-overlay" id="modal">
         <div class="modal">
             <h3>确认兑换？</h3>
@@ -200,7 +194,6 @@
         </div>
     </div>
 
-    <!-- 成功提示 -->
     <div class="toast" id="toast">✅ 兑换申请已提交！</div>
 
     <script>
@@ -209,18 +202,17 @@
         const SUPABASE_KEY = 'sb_publishable_9qFlq7jJcXvnkZOIoxinug_RVotHtGw';
         // ==================================================
 
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         let currentUser = null;
         let shopItems = [];
         let selectedItem = null;
 
-        // 自动登录
         async function autoLogin() {
             const savedId = localStorage.getItem('clan_user_id');
             if (!savedId) return;
             
-            const { data } = await supabase
+            const { data } = await sb
                 .from('game_users')
                 .select('*')
                 .eq('id', savedId)
@@ -232,12 +224,11 @@
             }
         }
 
-        // 登录
         async function login() {
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('game_users')
                 .select('*')
                 .eq('username', username)
@@ -254,7 +245,6 @@
             showDashboard();
         }
 
-        // 显示主面板
         function showDashboard() {
             document.getElementById('loginCard').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
@@ -266,9 +256,8 @@
             loadShop();
         }
 
-        // 加载兑换物品
         async function loadShop() {
-            const { data } = await supabase
+            const { data } = await sb
                 .from('shop_items')
                 .select('*')
                 .eq('is_active', true);
@@ -300,7 +289,6 @@
             });
         }
 
-        // 打开兑换确认
         function openRedeem(itemId) {
             selectedItem = shopItems.find(i => i.id === itemId);
             document.getElementById('modalText').textContent = 
@@ -308,18 +296,15 @@
             document.getElementById('modal').style.display = 'flex';
         }
 
-        // 关闭弹窗
         function closeModal() {
             document.getElementById('modal').style.display = 'none';
             selectedItem = null;
         }
 
-        // 确认兑换
         async function confirmRedeem() {
             if (!selectedItem) return;
             
-            // 写入兑换记录（这就是你收到的通知）
-            await supabase.from('redemptions').insert({
+            await sb.from('redemptions').insert({
                 user_id: currentUser.id,
                 item_id: selectedItem.id,
                 item_name: selectedItem.name,
@@ -330,20 +315,17 @@
             showToast();
         }
 
-        // 显示成功提示
         function showToast() {
             const toast = document.getElementById('toast');
             toast.style.display = 'block';
             setTimeout(() => toast.style.display = 'none', 2500);
         }
 
-        // 退出
         function logout() {
             localStorage.removeItem('clan_user_id');
             location.reload();
         }
 
-        // 启动
         autoLogin();
     </script>
 </body>
