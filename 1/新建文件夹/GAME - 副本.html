@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warframe 风格 - 奥布山谷挖矿模拟器</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0e17; color: #e0e6ed; font-family: 'Rajdhani', sans-serif; overflow: hidden; user-select: none; width: 100vw; height: 100vh; }
+  .scanner-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; background: radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,255,200,0.03) 70%), repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,200,0.02) 2px, rgba(0,255,200,0.02) 4px); }
+  .scanner-overlay::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 300px; height: 300px; border: 1px solid rgba(0,255,200,0.15); border-radius: 50%; animation: scannerPulse 3s ease-in-out infinite; }
+  .scanner-overlay::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 100px; height: 100px; border: 2px solid rgba(0,255,200,0.3); border-radius: 50%; animation: scannerPulse 2s ease-in-out infinite reverse; }
+  @keyframes scannerPulse { 0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.3; } 50% { transform: translate(-50%,-50%) scale(1.2); opacity: 0.6; } }
+  #gameCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: crosshair; }
+  .hud-top { position: fixed; top: 0; left: 0; width: 100%; display: flex; justify-content: space-between; align-items: flex-start; padding: 15px 25px; z-index: 50; pointer-events: none; }
+  .hud-panel { background: rgba(10,20,40,0.85); border: 1px solid rgba(0,200,255,0.3); border-radius: 4px; padding: 10px 18px; backdrop-filter: blur(8px); position: relative; overflow: hidden; }
+  .hud-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, rgba(0,200,255,0.6), transparent); }
+  .hud-title { font-family: 'Orbitron', sans-serif; font-size: 14px; color: #00c8ff; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .hud-value { font-size: 22px; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(0,200,255,0.5); }
+  .hud-value.gold { color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+  .hud-value.platinum { color: #e0e0e0; text-shadow: 0 0 10px rgba(200,200,200,0.5); }
+  .toolbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 50; pointer-events: auto; }
+  .tool-btn { width: 70px; height: 70px; background: rgba(10,20,40,0.9); border: 2px solid rgba(0,200,255,0.3); border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; position: relative; overflow: hidden; }
+  .tool-btn:hover { border-color: rgba(0,200,255,0.8); box-shadow: 0 0 15px rgba(0,200,255,0.3); transform: translateY(-2px); }
+  .tool-btn.active { border-color: #00ff88; box-shadow: 0 0 20px rgba(0,255,136,0.4); background: rgba(0,255,136,0.1); }
+  .tool-btn .tool-icon { font-size: 24px; }
+  .tool-btn .tool-name { font-size: 10px; color: #88aacc; text-transform: uppercase; letter-spacing: 1px; }
+  .tool-btn .hotkey { position: absolute; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); font-family: 'Orbitron', sans-serif; }
+  .ore-info { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0); background: rgba(5,10,20,0.95); border: 2px solid #00ff88; border-radius: 12px; padding: 30px 40px; z-index: 200; text-align: center; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 320px; }
+  .ore-info.show { transform: translate(-50%,-50%) scale(1); }
+  .ore-info h2 { font-family: 'Orbitron', sans-serif; font-size: 24px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 3px; }
+  .ore-rarity { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 2px; }
+  .rarity-common { background: rgba(150,150,150,0.2); color: #aaa; border: 1px solid #666; }
+  .rarity-uncommon { background: rgba(0,200,255,0.15); color: #00c8ff; border: 1px solid #00c8ff; }
+  .rarity-rare { background: rgba(255,0,200,0.15); color: #ff00c8; border: 1px solid #ff00c8; }
+  .rarity-legendary { background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid #ffd700; }
+  .mining-minigame { margin: 20px 0; position: relative; height: 60px; background: rgba(0,0,0,0.5); border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,255,136,0.3); }
+  .mining-bar { position: absolute; top: 0; left: 0; height: 100%; background: linear-gradient(90deg, #00ff88, #00c8ff); border-radius: 8px; transition: width 0.1s linear; }
+  .mining-target { position: absolute; top: 0; width: 4px; height: 100%; background: #fff; box-shadow: 0 0 10px #fff; }
+  .mining-cursor { position: absolute; top: 0; width: 8px; height: 100%; background: #ff4444; border-radius: 2px; box-shadow: 0 0 10px #ff4444; transition: left 0.05s linear; }
+  .instructions { font-size: 13px; color: #88aacc; margin-top: 10px; }
+  .result-text { font-size: 18px; font-weight: 700; margin-top: 15px; min-height: 24px; }
+  .result-perfect { color: #00ff88; }
+  .result-good { color: #00c8ff; }
+  .result-miss { color: #ff4444; }
+  .inventory-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0); background: rgba(5,10,20,0.95); border: 2px solid rgba(0,200,255,0.5); border-radius: 12px; padding: 25px; z-index: 200; width: 500px; max-height: 70vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .inventory-panel.show { transform: translate(-50%,-50%) scale(1); }
+  .inventory-panel h2 { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #00c8ff; text-align: center; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 3px; }
+  .inventory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .inv-item { background: rgba(0,20,40,0.6); border: 1px solid rgba(0,200,255,0.2); border-radius: 6px; padding: 10px; text-align: center; transition: all 0.2s; }
+  .inv-item:hover { border-color: rgba(0,200,255,0.6); background: rgba(0,40,80,0.6); }
+  .inv-item .inv-icon { font-size: 28px; margin-bottom: 5px; }
+  .inv-item .inv-name { font-size: 11px; color: #aaccff; margin-bottom: 2px; }
+  .inv-item .inv-count { font-size: 14px; font-weight: 700; color: #fff; }
+  .inv-item .inv-rarity { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+  .floating-text { position: fixed; pointer-events: none; font-weight: 700; font-size: 16px; z-index: 150; animation: floatUp 1.5s ease-out forwards; text-shadow: 0 0 10px currentColor; font-family: 'Orbitron', sans-serif; }
+  @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.2); } }
+  .notification { position: fixed; top: 80px; right: -400px; background: rgba(5,10,20,0.95); border-left: 4px solid #00ff88; padding: 15px 25px; border-radius: 0 8px 8px 0; z-index: 200; transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 280px; }
+  .notification.show { right: 20px; }
+  .notification .notif-title { font-family: 'Orbitron', sans-serif; font-size: 14px; color: #00ff88; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+  .notification .notif-desc { font-size: 13px; color: #aaccff; }
+  .start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #0a0e17 0%, #0d1b2a 50%, #0a0e17 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.8s ease-out; }
+  .start-screen.hidden { opacity: 0; pointer-events: none; }
+  .start-screen h1 { font-family: 'Orbitron', sans-serif; font-size: 48px; color: #00c8ff; text-shadow: 0 0 30px rgba(0,200,255,0.5); letter-spacing: 8px; margin-bottom: 10px; }
+  .start-screen .subtitle { font-size: 18px; color: #88aacc; margin-bottom: 50px; letter-spacing: 4px; text-transform: uppercase; }
+  .start-btn { padding: 16px 60px; background: transparent; border: 2px solid #00ff88; color: #00ff88; font-family: 'Orbitron', sans-serif; font-size: 18px; letter-spacing: 4px; text-transform: uppercase; cursor: pointer; border-radius: 4px; transition: all 0.3s; position: relative; overflow: hidden; }
+  .start-btn:hover { background: rgba(0,255,136,0.1); box-shadow: 0 0 30px rgba(0,255,136,0.3); transform: scale(1.05); }
+  .start-btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(0,255,136,0.2), transparent); transition: left 0.5s; }
+  .start-btn:hover::before { left: 100%; }
+  .controls-hint { margin-top: 40px; text-align: center; color: #557799; font-size: 13px; line-height: 2; }
+  .controls-hint span { color: #00c8ff; font-weight: 700; }
+  .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, transparent, rgba(0,255,200,0.5), transparent); z-index: 90; animation: scanDown 4s linear infinite; pointer-events: none; }
+  @keyframes scanDown { 0% { top: -3px; } 100% { top: 100vh; } }
+  .bottom-hint { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); color: rgba(0,200,255,0.6); font-size: 13px; z-index: 50; pointer-events: none; text-align: center; opacity: 0; transition: opacity 0.5s; }
+  .bottom-hint.show { opacity: 1; }
+  .codex-btn { position: fixed; top: 15px; right: 15px; width: 45px; height: 45px; background: rgba(10,20,40,0.85); border: 1px solid rgba(0,200,255,0.3); border-radius: 8px; color: #00c8ff; font-size: 20px; cursor: pointer; z-index: 50; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .codex-btn:hover { border-color: #00c8ff; box-shadow: 0 0 15px rgba(0,200,255,0.3); }
+  .codex-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0); background: rgba(5,10,20,0.97); border: 2px solid rgba(0,200,255,0.5); border-radius: 12px; padding: 25px; z-index: 300; width: 600px; max-height: 80vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .codex-panel.show { transform: translate(-50%,-50%) scale(1); }
+  .codex-panel h2 { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #00c8ff; text-align: center; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 3px; }
+  .codex-list { display: flex; flex-direction: column; gap: 12px; }
+  .codex-item { display: flex; align-items: center; gap: 15px; background: rgba(0,20,40,0.5); border: 1px solid rgba(0,200,255,0.15); border-radius: 8px; padding: 12px 15px; transition: all 0.2s; }
+  .codex-item:hover { border-color: rgba(0,200,255,0.4); background: rgba(0,40,80,0.5); }
+  .cx-icon { font-size: 32px; width: 50px; text-align: center; }
+  .cx-info { flex: 1; }
+  .cx-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+  .cx-desc { font-size: 12px; color: #7799bb; }
+  .cx-rarity { font-size: 10px; padding: 2px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .cx-value { font-size: 14px; font-weight: 700; color: #ffd700; }
+  .close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; color: #ff4444; font-size: 24px; cursor: pointer; z-index: 10; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+  ::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,200,255,0.5); }
+  .ore-marker { position: fixed; pointer-events: none; z-index: 40; transition: all 0.3s; }
+  .ore-marker-inner { width: 40px; height: 40px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; font-size: 18px; animation: markerPulse 2s ease-in-out infinite; background: rgba(0,0,0,0.4); }
+  @keyframes markerPulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.3); opacity: 1; } }
+  .marker-distance { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #00c8ff; white-space: nowrap; font-family: 'Orbitron', sans-serif; }
+  .combo-display { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Orbitron', sans-serif; font-size: 48px; font-weight: 900; color: #00ff88; text-shadow: 0 0 20px rgba(0,255,136,0.8); z-index: 250; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+  .combo-display.show { opacity: 1; animation: comboPop 0.6s ease-out forwards; }
+  @keyframes comboPop { 0% { transform: translate(-50%,-50%) scale(0.5); } 50% { transform: translate(-50%,-50%) scale(1.3); } 100% { transform: translate(-50%,-50%) scale(1); } }
+</style>
+<base target="_blank">
+</head>
+<body>
+<div class="start-screen" id="startScreen">
+  <h1>奥布山谷</h1>
+  <div class="subtitle">采矿模拟器</div>
+  <button class="start-btn" onclick="startGame()">开始采集</button>
+  <div class="controls-hint"><span>WASD</span> 移动 | <span>鼠标</span> 瞄准 | <span>左键</span> 采集<br><span>1-3</span> 切换工具 | <span>I</span> 背包 | <span>C</span> 图鉴</div>
+</div>
+<div class="scanner-overlay" id="scannerOverlay" style="display:none;"></div>
+<div class="scan-line" id="scanLine" style="display:none;"></div>
+<canvas id="gameCanvas"></canvas>
+<div class="hud-top" id="hudTop" style="display:none;">
+  <div class="hud-panel"><div class="hud-title">Credits</div><div class="hud-value" id="creditsDisplay">0</div></div>
+  <div class="hud-panel"><div class="hud-title">Platinum</div><div class="hud-value platinum" id="platinumDisplay">0</div></div>
+  <div class="hud-panel"><div class="hud-title">已采集</div><div class="hud-value gold" id="minedDisplay">0</div></div>
+  <div class="hud-panel"><div class="hud-title">连击</div><div class="hud-value" id="comboDisplay">x0</div></div>
+</div>
+<button class="codex-btn" id="codexBtn" style="display:none;" onclick="toggleCodex()">📖</button>
+<div class="bottom-hint" id="bottomHint"></div>
+<div class="toolbar" id="toolbar" style="display:none;">
+  <div class="tool-btn active" data-tool="laser" onclick="selectTool('laser')"><span class="hotkey">1</span><span class="tool-icon">🔫</span><span class="tool-name">激光钻</span></div>
+  <div class="tool-btn" data-tool="scanner" onclick="selectTool('scanner')"><span class="hotkey">2</span><span class="tool-icon">📡</span><span class="tool-name">扫描仪</span></div>
+  <div class="tool-btn" data-tool="extractor" onclick="selectTool('extractor')"><span class="hotkey">3</span><span class="tool-icon">⚙️</span><span class="tool-name">提取器</span></div>
+</div>
+<div class="ore-info" id="oreInfo">
+  <button class="close-btn" onclick="closeOreInfo()">×</button>
+  <h2 id="oreName">矿石名称</h2>
+  <div class="ore-rarity" id="oreRarity">普通</div>
+  <div id="oreDesc" style="color:#88aacc;font-size:13px;margin-bottom:15px;"></div>
+  <div class="mining-minigame" id="miningGame">
+    <div class="mining-bar" id="miningBar"></div>
+    <div class="mining-target" id="miningTarget"></div>
+    <div class="mining-cursor" id="miningCursor"></div>
+  </div>
+  <div class="instructions" id="miningInstructions">按空格键或点击当光标到达目标区域时采集</div>
+  <div class="result-text" id="miningResult"></div>
+</div>
+<div class="inventory-panel" id="inventoryPanel">
+  <button class="close-btn" onclick="toggleInventory()">×</button>
+  <h2>资源背包</h2>
+  <div class="inventory-grid" id="inventoryGrid"></div>
+</div>
+<div class="codex-panel" id="codexPanel">
+  <button class="close-btn" onclick="toggleCodex()">×</button>
+  <h2>矿物图鉴</h2>
+  <div class="codex-list" id="codexList"></div>
+</div>
+<div class="combo-display" id="comboDisplayAnim">COMBO x3!</div>
+
+<script>
+const ORE_TYPES = {
+  ferrite: { name:'铁素体', icon:'⬛', color:'#888888', rarity:'common', rarityName:'普通', value:10, desc:'常见的铁基合金，广泛用于武器和战甲制造。', spawnRate:0.35, minigameSpeed:2, targetWidth:25 },
+  polymer: { name:'聚合物束', icon:'🟩', color:'#44aa44', rarity:'common', rarityName:'普通', value:15, desc:'高强度合成聚合物，用于制造各种装备组件。', spawnRate:0.30, minigameSpeed:2.2, targetWidth:22 },
+  plastids: { name:'生物质', icon:'🟫', color:'#aa6644', rarity:'uncommon', rarityName:'罕见', value:30, desc:'来自Infested生物的有机物质，具有独特的生物力学特性。', spawnRate:0.15, minigameSpeed:2.8, targetWidth:18 },
+  oxium: { name:'奥席金属', icon:'🔷', color:'#4488ff', rarity:'uncommon', rarityName:'罕见', value:50, desc:'轻量化的奥罗金合金，用于高级装备制造。', spawnRate:0.10, minigameSpeed:3.2, targetWidth:15 },
+  morphics: { name:'非晶态合金', icon:'🔴', color:'#ff4444', rarity:'uncommon', rarityName:'罕见', value:40, desc:'具有独特分子结构的合金，在极端条件下保持稳定。', spawnRate:0.12, minigameSpeed:2.5, targetWidth:20 },
+  argon: { name:'氩结晶', icon:'💎', color:'#ff88ff', rarity:'rare', rarityName:'稀有', value:100, desc:'不稳定的虚空能量结晶，会随时间衰变。极其珍贵。', spawnRate:0.06, minigameSpeed:3.8, targetWidth:12 },
+  tellurium: { name:'碲元素', icon:'⭐', color:'#00ffff', rarity:'rare', rarityName:'稀有', value:150, desc:'深空稀有元素，用于制造Archwing和航道星舰组件。', spawnRate:0.04, minigameSpeed:4.0, targetWidth:10 },
+  orokin: { name:'奥罗金电池', icon:'🔋', color:'#ffcc00', rarity:'legendary', rarityName:'传说', value:250, desc:'奥罗金时代的能量核心，蕴含着几乎无限的能量。', spawnRate:0.03, minigameSpeed:4.5, targetWidth:8 }
+};
+
+const RARITY_CSS = { common:'rarity-common', uncommon:'rarity-uncommon', rare:'rarity-rare', legendary:'rarity-legendary' };
+
+let canvas, ctx, gameState='start', player={x:0,y:0,angle:0,speed:3}, camera={x:0,y:0};
+let ores=[], particles=[], inventory={}, credits=0, platinum=0, totalMined=0, combo=0, comboTimer=null;
+let currentTool='laser', mouseX=0, mouseY=0, worldWidth=3000, worldHeight=3000;
+let miningState=null, oreMarkers=[], lastTime=0, keys={}, scannerActive=false, scannerPulse=0;
+
+function init() {
+  canvas = document.getElementById('gameCanvas');
+  ctx = canvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  player.x = worldWidth/2; player.y = worldHeight/2;
+  generateOres();
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mousedown', handleMouseDown);
+  document.addEventListener('keydown', handleMiningKey);
+  Object.keys(ORE_TYPES).forEach(k => inventory[k]=0);
+  requestAnimationFrame(gameLoop);
+}
+
+function resizeCanvas() { canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+
+function startGame() {
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('hudTop').style.display='flex';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('scannerOverlay').style.display='block';
+  document.getElementById('scanLine').style.display='block';
+  document.getElementById('codexBtn').style.display='flex';
+  gameState='playing';
+  showNotification('系统就绪','采矿设备已启动。使用激光钻采集矿石，扫描仪寻找矿脉。');
+}
+
+function generateOres() {
+  ores=[];
+  for(let i=0;i<80;i++){
+    let rand=Math.random(), cum=0, sel='ferrite';
+    for(const[k,t]of Object.entries(ORE_TYPES)){cum+=t.spawnRate;if(rand<cum){sel=k;break;}}
+    ores.push({x:Math.random()*(worldWidth-200)+100,y:Math.random()*(worldHeight-200)+100,type:sel,size:15+Math.random()*10,angle:Math.random()*Math.PI*2,pulse:Math.random()*Math.PI*2,mined:false,respawnTimer:0,glowIntensity:0});
+  }
+}
+
+function gameLoop(ts){
+  let dt=(ts-lastTime)/1000; lastTime=ts;
+  if(gameState==='playing'){update(dt);render();}
+  requestAnimationFrame(gameLoop);
+}
+
+function update(dt){
+  let dx=0,dy=0;
+  if(keys['w']||keys['arrowup'])dy-=1;
+  if(keys['s']||keys['arrowdown'])dy+=1;
+  if(keys['a']||keys['arrowleft'])dx-=1;
+  if(keys['d']||keys['arrowright'])dx+=1;
+  if(dx!==0||dy!==0){
+    let len=Math.sqrt(dx*dx+dy*dy); dx/=len; dy/=len;
+    player.x+=dx*player.speed; player.y+=dy*player.speed;
+    player.x=Math.max(50,Math.min(worldWidth-50,player.x));
+    player.y=Math.max(50,Math.min(worldHeight-50,player.y));
+  }
+  player.angle=Math.atan2(mouseY-(player.y-camera.y),mouseX-(player.x-camera.x));
+  camera.x=Math.max(0,Math.min(worldWidth-canvas.width,player.x-canvas.width/2));
+  camera.y=Math.max(0,Math.min(worldHeight-canvas.height,player.y-canvas.height/2));
+
+  ores.forEach(ore=>{
+    if(ore.mined){ore.respawnTimer-=dt;if(ore.respawnTimer<=0){ore.mined=false;ore.x=Math.random()*(worldWidth-200)+100;ore.y=Math.random()*(worldHeight-200)+100;}}
+    else{ore.pulse+=dt*2;let dist=Math.sqrt((ore.x-player.x)**2+(ore.y-player.y)**2);ore.glowIntensity=dist<200?Math.min(ore.glowIntensity+dt*3,1):Math.max(ore.glowIntensity-dt*2,0);}
+  });
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life-=dt;p.size*=0.98;return p.life>0;});
+  if(scannerActive){scannerPulse+=dt*3;if(scannerPulse>Math.PI*2){scannerPulse=0;scannerActive=false;}}
+  updateOreMarkers();
+  if(combo>0&&!comboTimer){comboTimer=setTimeout(()=>{if(combo>0){showFloatingText('连击中断! x'+combo,player.x-camera.x,player.y-camera.y-50,'#ff4444');combo=0;updateHUD();}comboTimer=null;},5000);}
+}
+
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawGrid(); drawTerrain();
+  ores.forEach(ore=>{if(!ore.mined)drawOre(ore);});
+  particles.forEach(p=>{ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x-camera.x,p.y-camera.y,p.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;});
+  drawPlayer(); if(scannerActive)drawScannerEffect(); drawToolIndicator();
+}
+
+function drawGrid(){
+  let gs=100,ox=-camera.x%gs,oy=-camera.y%gs;
+  ctx.strokeStyle='rgba(0,200,255,0.05)';ctx.lineWidth=1;
+  for(let x=ox;x<canvas.width;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=oy;y<canvas.height;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+}
+
+function drawTerrain(){
+  ctx.save();ctx.translate(-camera.x,-camera.y);
+  for(let i=0;i<30;i++){
+    let x=((i*997+12345)%worldWidth),y=((i*1009+24690)%worldHeight),size=30+(i%5)*15;
+    if(x>camera.x-100&&x<camera.x+canvas.width+100&&y>camera.y-100&&y<camera.y+canvas.height+100){
+      ctx.fillStyle='rgba(20,30,50,0.6)';ctx.beginPath();ctx.ellipse(x,y,size,size*0.6,i*0.5,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(0,200,255,0.08)';ctx.lineWidth=1;ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawOre(ore){
+  let sx=ore.x-camera.x,sy=ore.y-camera.y;
+  if(sx<-50||sx>canvas.width+50||sy<-50||sy>canvas.height+50)return;
+  let t=ORE_TYPES[ore.type],ps=1+Math.sin(ore.pulse)*0.15;
+  ctx.save();ctx.translate(sx,sy);ctx.rotate(ore.angle);
+  if(ore.glowIntensity>0){
+    let g=ctx.createRadialGradient(0,0,0,0,0,ore.size*3);
+    let a=Math.floor(ore.glowIntensity*80).toString(16).padStart(2,'0');
+    g.addColorStop(0,t.color+a);g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,ore.size*3,0,Math.PI*2);ctx.fill();
+  }
+  ctx.fillStyle=t.color+'cc';ctx.beginPath();
+  for(let i=0;i<6;i++){let a=(i/6)*Math.PI*2,r=ore.size*ps*(0.8+Math.sin(a*3+ore.pulse)*0.2);let px=Math.cos(a)*r,py=Math.sin(a)*r;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}
+  ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.beginPath();ctx.arc(-ore.size*0.2,-ore.size*0.2,ore.size*0.3,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=t.color;ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
+  ctx.font=Math.floor(ore.size)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t.icon,sx,sy);
+}
+
+function drawPlayer(){
+  let x=player.x-camera.x,y=player.y-camera.y;
+  ctx.save();ctx.translate(x,y);ctx.rotate(player.angle);
+  ctx.fillStyle='#1a3a5c';ctx.beginPath();ctx.ellipse(0,0,20,12,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#00c8ff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-10,-8);ctx.lineTo(15,0);ctx.lineTo(-10,8);ctx.stroke();
+  ctx.fillStyle='#00ff88';ctx.shadowColor='#00ff88';ctx.shadowBlur=10;ctx.beginPath();ctx.arc(0,0,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  if(currentTool==='laser'){ctx.strokeStyle='#ff4444';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(15,0);ctx.lineTo(35,0);ctx.stroke();ctx.fillStyle='#ff6666';ctx.beginPath();ctx.arc(35,0,4,0,Math.PI*2);ctx.fill();}
+  else if(currentTool==='scanner'){ctx.strokeStyle='#00c8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(25,0,10,-0.5,0.5);ctx.stroke();}
+  ctx.restore();
+  ctx.strokeStyle='rgba(0,200,255,0.2)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,30,0,Math.PI*2);ctx.stroke();
+}
+
+function drawScannerEffect(){
+  let x=player.x-camera.x,y=player.y-camera.y,r=scannerPulse*300;
+  ctx.strokeStyle='rgba(0,255,200,'+(1-scannerPulse/(Math.PI*2))+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();
+  ores.forEach(ore=>{
+    if(ore.mined)return;
+    let d=Math.sqrt((ore.x-player.x)**2+(ore.y-player.y)**2);
+    if(Math.abs(d-r)<30){ctx.strokeStyle=ORE_TYPES[ore.type].color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(ore.x-camera.x,ore.y-camera.y,25,0,Math.PI*2);ctx.stroke();}
+  });
+}
+
+function drawToolIndicator(){
+  let x=player.x-camera.x,y=player.y-camera.y;
+  ctx.strokeStyle='rgba(0,200,255,0.15)';ctx.lineWidth=1;ctx.setLineDash([5,5]);
+  if(currentTool==='laser'){ctx.beginPath();ctx.arc(x,y,80,0,Math.PI*2);ctx.stroke();}
+  else if(currentTool==='scanner'){ctx.beginPath();ctx.arc(x,y,300,0,Math.PI*2);ctx.stroke();}
+  ctx.setLineDash([]);
+}
+
+function updateOreMarkers(){
+  oreMarkers.forEach(m=>m.element.remove());oreMarkers=[];
+  if(currentTool!=='scanner')return;
+  ores.forEach(ore=>{
+    if(ore.mined)return;
+    let d=Math.sqrt((ore.x-player.x)**2+(ore.y-player.y)**2);
+    if(d>400)return;
+    let sx=ore.x-camera.x,sy=ore.y-camera.y,mx=sx,my=sy,onScreen=true;
+    if(sx<0||sx>canvas.width||sy<0||sy>canvas.height){
+      onScreen=false;let a=Math.atan2(sy-canvas.height/2,sx-canvas.width/2);let ed=Math.min(canvas.width,canvas.height)/2-40;
+      mx=canvas.width/2+Math.cos(a)*ed;my=canvas.height/2+Math.sin(a)*ed;
+    }
+    let t=ORE_TYPES[ore.type],m=document.createElement('div');m.className='ore-marker';
+    m.innerHTML='<div class="ore-marker-inner" style="border-color:'+t.color+';color:'+t.color+'">'+t.icon+'</div>'+(onScreen?'':'<div class="marker-distance">'+Math.round(d)+'m</div>');
+    m.style.left=(mx-20)+'px';m.style.top=(my-20)+'px';m.style.opacity=onScreen?'0':'0.8';
+    document.body.appendChild(m);oreMarkers.push({element:m});
+  });
+}
+
+function handleKeyDown(e){
+  keys[e.key.toLowerCase()]=true;
+  if(e.key==='1')selectTool('laser');if(e.key==='2')selectTool('scanner');if(e.key==='3')selectTool('extractor');
+  if(e.key.toLowerCase()==='i')toggleInventory();if(e.key.toLowerCase()==='c')toggleCodex();
+  if(e.key==='Escape'){closeOreInfo();document.getElementById('inventoryPanel').classList.remove('show');document.getElementById('codexPanel').classList.remove('show');}
+}
+function handleKeyUp(e){keys[e.key.toLowerCase()]=false;}
+function handleMouseMove(e){mouseX=e.clientX;mouseY=e.clientY;}
+
+function handleMouseDown(e){
+  if(gameState!=='playing'||e.button!==0)return;
+  if(e.target.closest('.ore-info')||e.target.closest('.inventory-panel')||e.target.closest('.codex-panel')||e.target.closest('.toolbar'))return;
+  let wx=e.clientX+camera.x,wy=e.clientY+camera.y;
+  if(currentTool==='laser'){
+    let co=null,md=Infinity;
+    ores.forEach(ore=>{if(ore.mined)return;let d=Math.sqrt((ore.x-wx)**2+(ore.y-wy)**2);if(d<ore.size+15&&d<md){md=d;co=ore;}});
+    if(co)startMining(co);else createLaserEffect(player.x,player.y,wx,wy);
+  }else if(currentTool==='scanner'){scannerActive=true;scannerPulse=0;showFloatingText('扫描中...',e.clientX,e.clientY,'#00c8ff');}
+  else if(currentTool==='extractor'){let ex=false;ores.forEach(ore=>{if(ore.mined)return;let d=Math.sqrt((ore.x-wx)**2+(ore.y-wy)**2);if(d<60){mineOreInstant(ore,0.5);ex=true;}});if(ex)showFloatingText('批量提取!',e.clientX,e.clientY,'#00ff88');}
+}
+
+function handleMiningKey(e){if(gameState!=='mining'||!miningState)return;if(e.code!=='Space'&&e.code!=='Enter')return;e.preventDefault();checkMiningHit();}
+
+function selectTool(tool){
+  currentTool=tool;
+  document.querySelectorAll('.tool-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.tool===tool));
+  let hints={laser:'激光钻：点击矿石开始精准采集小游戏',scanner:'扫描仪：点击发射脉冲，显示附近矿石位置',extractor:'提取器：点击区域进行大范围快速采集（收益减半）'};
+  let h=document.getElementById('bottomHint');h.textContent=hints[tool];h.classList.add('show');setTimeout(()=>h.classList.remove('show'),3000);
+}
+
+function startMining(ore){
+  gameState='mining';let t=ORE_TYPES[ore.type];
+  miningState={ore:ore,cursorPos:0,direction:1,speed:t.minigameSpeed,hits:0,maxHits:t.rarity==='legendary'?5:t.rarity==='rare'?4:3,targetPos:30+Math.random()*40,targetWidth:t.targetWidth,barWidth:100};
+  let p=document.getElementById('oreInfo');
+  document.getElementById('oreName').textContent=t.name;document.getElementById('oreName').style.color=t.color;
+  document.getElementById('oreRarity').textContent=t.rarityName;document.getElementById('oreRarity').className='ore-rarity '+RARITY_CSS[t.rarity];
+  document.getElementById('oreDesc').textContent=t.desc;document.getElementById('miningResult').textContent='';
+  document.getElementById('miningInstructions').textContent='按空格键或点击采集！目标: '+miningState.maxHits+' 次完美命中';
+  p.classList.add('show');updateMiningUI();miningLoop();
+}
+
+function miningLoop(){
+  if(gameState!=='mining'||!miningState)return;
+  miningState.cursorPos+=miningState.speed*miningState.direction;
+  if(miningState.cursorPos>=100||miningState.cursorPos<=0)miningState.direction*=-1;
+  updateMiningUI();requestAnimationFrame(miningLoop);
+}
+
+function updateMiningUI(){
+  if(!miningState)return;
+  document.getElementById('miningCursor').style.left=miningState.cursorPos+'%';
+  document.getElementById('miningTarget').style.left=miningState.targetPos+'%';
+  document.getElementById('miningTarget').style.width=miningState.targetWidth+'%';
+  document.getElementById('miningBar').style.width=(miningState.hits/miningState.maxHits*100)+'%';
+}
+
+function checkMiningHit(){
+  if(!miningState)return;
+  let cc=miningState.cursorPos,ts=miningState.targetPos,te=miningState.targetPos+miningState.targetWidth;
+  let hit=false,quality='miss';
+  if(cc>=ts&&cc<=te){
+    hit=true;let tc=ts+miningState.targetWidth/2,dfc=Math.abs(cc-tc),pt=miningState.targetWidth*0.2;
+    quality=dfc<pt?'perfect':'good';
+  }
+  let r=document.getElementById('miningResult');
+  if(hit){
+    miningState.hits++;
+    if(quality==='perfect'){r.textContent='完美! ⚡';r.className='result-text result-perfect';miningState.speed*=1.15;}
+    else{r.textContent='命中! ✓';r.className='result-text result-good';miningState.speed*=1.08;}
+    miningState.targetPos=10+Math.random()*(80-miningState.targetWidth);
+    if(miningState.hits>=miningState.maxHits){setTimeout(()=>completeMining(true),300);return;}
+  }else{r.textContent='未命中! ✗';r.className='result-text result-miss';miningState.speed*=0.9;miningState.hits=Math.max(0,miningState.hits-1);}
+  updateMiningUI();
+}
+
+function completeMining(success){
+  if(!miningState)return;
+  let ore=miningState.ore,t=ORE_TYPES[ore.type];closeOreInfo();
+  if(success){
+    let mult=combo>=5?2:combo>=3?1.5:combo>=1?1.2:1;
+    let amt=Math.floor((1+Math.random()*2)*mult),val=t.value*amt;
+    inventory[ore.type]+=amt;credits+=val;totalMined+=amt;combo++;
+    if(t.rarity==='rare')platinum+=1;if(t.rarity==='legendary')platinum+=3;
+    createExplosion(ore.x,ore.y,t.color);
+    let sx=ore.x-camera.x,sy=ore.y-camera.y;
+    showFloatingText('+'+amt+' '+t.name,sx,sy-30,t.color);
+    showFloatingText('+'+val+' CR',sx,sy-50,'#ffd700');
+    if(combo>1){showFloatingText('COMBO x'+combo+'!',sx,sy-70,'#00ff88');showComboAnim(combo);}
+    ore.mined=true;ore.respawnTimer=15+Math.random()*20;
+    if(t.rarity==='legendary')showNotification('传说级发现!','你发现了 '+t.name+'! 这是极其稀有的奥罗金遗物。');
+    else if(t.rarity==='rare')showNotification('稀有矿石!','发现了 '+t.name+'，价值不菲。');
+    updateHUD();
+  }
+  miningState=null;gameState='playing';
+}
+
+function mineOreInstant(ore,eff){
+  if(ore.mined)return;let t=ORE_TYPES[ore.type],amt=Math.max(1,Math.floor((1+Math.random())*eff)),val=Math.floor(t.value*amt*eff);
+  inventory[ore.type]+=amt;credits+=val;totalMined+=amt;
+  createExplosion(ore.x,ore.y,t.color);
+  let sx=ore.x-camera.x,sy=ore.y-camera.y;
+  showFloatingText('+'+amt+' '+t.name,sx,sy-20,t.color);
+  ore.mined=true;ore.respawnTimer=10+Math.random()*15;updateHUD();
+}
+
+function closeOreInfo(){document.getElementById('oreInfo').classList.remove('show');if(miningState){miningState=null;gameState='playing';}}
+function toggleInventory(){let p=document.getElementById('inventoryPanel');if(p.classList.contains('show')){p.classList.remove('show');}else{renderInventory();p.classList.add('show');}}
+function toggleCodex(){let p=document.getElementById('codexPanel');if(p.classList.contains('show')){p.classList.remove('show');}else{renderCodex();p.classList.add('show');}}
+
+function renderInventory(){
+  let g=document.getElementById('inventoryGrid');g.innerHTML='';
+  Object.entries(ORE_TYPES).forEach(([k,t])=>{
+    let c=inventory[k]||0;
+    let d=document.createElement('div');d.className='inv-item';
+    d.innerHTML='<div class="inv-icon">'+t.icon+'</div><div class="inv-name">'+t.name+'</div><div class="inv-count">'+c+'</div><div class="inv-rarity '+RARITY_CSS[t.rarity]+'">'+t.rarityName+'</div>';
+    g.appendChild(d);
+  });
+}
+
+function renderCodex(){
+  let l=document.getElementById('codexList');l.innerHTML='';
+  Object.entries(ORE_TYPES).forEach(([k,t])=>{
+    let c=inventory[k]||0,discovered=c>0;
+    let item=document.createElement('div');item.className='codex-item';item.style.opacity=discovered?'1':'0.5';
+    item.innerHTML='<div class="cx-icon">'+t.icon+'</div><div class="cx-info"><div class="cx-name" style="color:'+t.color+'">'+t.name+'</div><div class="cx-desc">'+t.desc+'</div></div><div class="cx-rarity '+RARITY_CSS[t.rarity]+'">'+t.rarityName+'</div><div class="cx-value">'+t.value+' CR</div>';
+    l.appendChild(item);
+  });
+}
+
+function createExplosion(x,y,color){
+  for(let i=0;i<15;i++){
+    let angle=Math.random()*Math.PI*2,speed=1+Math.random()*4;
+    particles.push({x:x,y:y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,size:2+Math.random()*4,life:0.5+Math.random()*0.5,color:color});
+  }
+}
+
+function createLaserEffect(x1,y1,x2,y2){
+  let dx=x2-x1,dy=y2-y1,dist=Math.sqrt(dx*dx+dy*dy),steps=Math.floor(dist/10);
+  for(let i=0;i<steps;i++){
+    let t=i/steps;
+    particles.push({x:x1+dx*t,y:y1+dy*t,vx:(Math.random()-0.5)*2,vy:(Math.random()-0.5)*2,size:2,life:0.3,color:'#ff6666'});
+  }
+}
+
+function showFloatingText(text,x,y,color){
+  let el=document.createElement('div');el.className='floating-text';el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';el.style.color=color;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),1500);
+}
+
+function showComboAnim(n){
+  let el=document.getElementById('comboDisplayAnim');el.textContent='COMBO x'+n+'!';el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),800);
+}
+
+function showNotification(title,desc){
+  let n=document.createElement('div');n.className='notification';
+  n.innerHTML='<div class="notif-title">'+title+'</div><div class="notif-desc">'+desc+'</div>';
+  document.body.appendChild(n);
+  requestAnimationFrame(()=>n.classList.add('show'));
+  setTimeout(()=>{n.classList.remove('show');setTimeout(()=>n.remove(),400);},4000);
+}
+
+function updateHUD(){
+  document.getElementById('creditsDisplay').textContent=credits;
+  document.getElementById('platinumDisplay').textContent=platinum;
+  document.getElementById('minedDisplay').textContent=totalMined;
+  document.getElementById('comboDisplay').textContent='x'+combo;
+}
+
+// 矿石信息面板也支持鼠标点击挖矿
+let miningClickHandler=function(e){if(gameState==='mining'&&miningState){e.preventDefault();checkMiningHit();}};
+document.getElementById('miningGame').addEventListener('mousedown',miningClickHandler);
+
+window.onload=init;
+</script>
+</body>
+</html>
