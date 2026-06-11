@@ -1,0 +1,457 @@
+/* ═══════════════════════════════════════════════════════════════
+   虚空图鉴系统样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ===== 图鉴页面布局 ===== */
+.codex-page {
+    padding: 20px;
+}
+
+/* 总进度概览 */
+.codex-overview {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    background: var(--panel-bg);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    border: 1px solid #222;
+}
+
+.codex-progress-ring {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
+}
+
+.codex-progress-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.progress-bg {
+    fill: none;
+    stroke: #222;
+    stroke-width: 8;
+}
+
+.progress-fill {
+    fill: none;
+    stroke: var(--orokin-cyan);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s ease;
+}
+
+.progress-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-text .percent {
+    font-family: 'Orbitron';
+    font-size: 1.8rem;
+    color: var(--orokin-cyan);
+    font-weight: 700;
+}
+
+.progress-text .label {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 2px;
+}
+
+.codex-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.codex-stats .stat-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+    color: #aaa;
+}
+
+.codex-stats .stat-bar {
+    flex: 1;
+    height: 8px;
+    background: #222;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.codex-stats .stat-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.stat-fill.enemies { background: var(--grineer-red); }
+.stat-fill.minerals { background: var(--tenno-gold); }
+.stat-fill.plants { background: var(--infested-green); }
+
+/* ===== 分类标签 ===== */
+.codex-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.codex-tab {
+    padding: 10px 24px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #333;
+    border-radius: 24px;
+    color: #888;
+    font-family: 'Orbitron';
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.codex-tab:hover {
+    border-color: var(--orokin-cyan-dim);
+    color: var(--orokin-cyan-dim);
+}
+
+.codex-tab.active {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: var(--orokin-cyan);
+    color: var(--orokin-cyan);
+}
+
+/* ===== 卡片网格 ===== */
+.codex-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+/* ===== 图鉴卡片 ===== */
+.codex-card {
+    position: relative;
+    background: linear-gradient(180deg, #1a1a2e 0%, #0a0a1a 100%);
+    border-radius: 12px;
+    border: 2px solid #333;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.codex-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* 派系色 */
+.codex-card[data-faction="grineer"] { border-color: rgba(255, 68, 68, 0.5); }
+.codex-card[data-faction="corpus"] { border-color: rgba(68, 136, 255, 0.5); }
+.codex-card[data-faction="infested"] { border-color: rgba(78, 255, 78, 0.5); }
+.codex-card[data-faction="sentient"] { border-color: rgba(255, 102, 255, 0.5); }
+
+.codex-card[data-faction="grineer"]:hover { border-color: var(--grineer-red); }
+.codex-card[data-faction="corpus"]:hover { border-color: var(--corpus-blue); }
+.codex-card[data-faction="infested"]:hover { border-color: var(--infested-green); }
+.codex-card[data-faction="sentient"]:hover { border-color: var(--sentient-purple); }
+
+/* 稀有度光效 */
+.codex-card[data-rarity="legendary"] {
+    animation: legendaryPulse 2s ease-in-out infinite;
+}
+
+@keyframes legendaryPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255, 170, 0, 0.2); }
+    50% { box-shadow: 0 0 25px rgba(255, 170, 0, 0.4); }
+}
+
+/* 顶部信息条 */
+.card-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.card-stars {
+    color: var(--tenno-gold);
+    font-size: 0.85rem;
+    text-shadow: 0 0 5px rgba(200, 168, 75, 0.5);
+    letter-spacing: 2px;
+}
+
+.card-status {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--infested-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #000;
+    font-weight: 700;
+}
+
+/* ===== 图片区域 ===== */
+.card-image {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #0a0a0f;
+}
+
+.card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    transition: transform 0.4s ease, filter 0.4s ease;
+}
+
+.codex-card:hover .card-image img {
+    transform: scale(1.08);
+}
+
+/* 派系色叠加 */
+.card-image::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    mix-blend-mode: overlay;
+    opacity: 0.25;
+    pointer-events: none;
+}
+
+.codex-card[data-faction="grineer"] .card-image::before { background: var(--grineer-red); }
+.codex-card[data-faction="corpus"] .card-image::before { background: var(--corpus-blue); }
+.codex-card[data-faction="infested"] .card-image::before { background: var(--infested-green); }
+.codex-card[data-faction="sentient"] .card-image::before { background: var(--sentient-purple); }
+
+/* 底部渐变 */
+.card-image::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(180deg, transparent 0%, #0a0a1a 100%);
+    z-index: 3;
+    pointer-events: none;
+}
+
+/* ===== 未解锁状态 ===== */
+.codex-card.locked .card-image img {
+    filter: blur(10px) brightness(0.35) grayscale(0.7);
+    transform: none !important;
+}
+
+.codex-card.locked .card-image::before {
+    opacity: 0.7;
+    background: #000 !important;
+    mix-blend-mode: normal;
+}
+
+.lock-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    gap: 10px;
+}
+
+.lock-icon {
+    font-size: 3rem;
+    opacity: 0.7;
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+}
+
+.lock-text {
+    font-family: 'Orbitron';
+    font-size: 0.8rem;
+    color: #666;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+/* ===== 信息区域 ===== */
+.card-info {
+    padding: 14px;
+    position: relative;
+    z-index: 5;
+}
+
+.card-name {
+    font-family: 'Orbitron';
+    font-size: 0.95rem;
+    color: #fff;
+    margin-bottom: 6px;
+    text-align: center;
+    text-shadow: 0 0 10px rgba(0,0,0,0.8);
+}
+
+.card-meta {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 12px;
+}
+
+.card-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 进度条 */
+.card-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress-track {
+    flex: 1;
+    height: 6px;
+    background: #222;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+/* 进度条颜色按派系 */
+.codex-card[data-faction="grineer"] .progress-fill { background: var(--grineer-red); }
+.codex-card[data-faction="corpus"] .progress-fill { background: var(--corpus-blue); }
+.codex-card[data-faction="infested"] .progress-fill { background: var(--infested-green); }
+.codex-card[data-faction="sentient"] .progress-fill { background: var(--sentient-purple); }
+
+.progress-text {
+    font-size: 0.75rem;
+    color: var(--tenno-gold);
+    font-family: 'Orbitron';
+    min-width: 40px;
+    text-align: right;
+}
+
+/* ===== 收集完成 ===== */
+.codex-card.completed {
+    border-color: var(--infested-green);
+}
+
+.codex-card.completed .card-status {
+    background: var(--infested-green);
+}
+
+/* ===== 动画 ===== */
+@keyframes legendaryPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255, 170, 0, 0.2); }
+    50% { box-shadow: 0 0 25px rgba(255, 170, 0, 0.5); }
+}
+
+/* 新获得动画 */
+.codex-card.newly-acquired {
+    animation: cardAcquire 0.8s ease;
+}
+
+@keyframes cardAcquire {
+    0% { transform: scale(0) rotateY(180deg); opacity: 0; }
+    60% { transform: scale(1.1) rotateY(0); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+/* 光泽扫过 */
+.card-shine {
+    position: absolute;
+    top: -100%;
+    left: -100%;
+    width: 300%;
+    height: 300%;
+    background: linear-gradient(
+        45deg,
+        transparent 40%,
+        rgba(255, 255, 255, 0.04) 50%,
+        transparent 60%
+    );
+    transform: rotate(30deg);
+    transition: transform 0.6s;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.codex-card:hover .card-shine {
+    transform: rotate(30deg) translate(10%, 10%);
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+    .codex-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .codex-overview {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .codex-progress-ring {
+        width: 100px;
+        height: 100px;
+    }
+}
+
+
+
+
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════════════
+   卡片样式
+   ═══════════════════════════════════════════════════════════════ */
+
+
+
+
+
+
+
+
+
+
+
+
